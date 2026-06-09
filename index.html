@@ -7,23 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-*{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;color:#1E1E1E}
 #root{height:100vh}
 #__boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font:14px Inter,sans-serif;color:#576875}
-.flex{display:flex}.flex-1{flex:1 1 0%}.flex-col{flex-direction:column}
-.items-center{align-items:center}.items-start{align-items:flex-start}
-.justify-between{justify-content:space-between}.justify-center{justify-content:center}
-.min-w-0{min-width:0}.shrink-0{flex-shrink:0}
-.overflow-hidden{overflow:hidden}.overflow-auto{overflow:auto}
-.h-full{height:100%}.h-screen{height:100vh}.w-full{width:100%}.text-left{text-align:left}
-.text-xs{font-size:12px}.font-medium{font-weight:500}
-.gap-1\.5{gap:6px}.gap-2{gap:8px}.gap-2\.5{gap:10px}.gap-3{gap:12px}
-.px-2{padding-left:8px;padding-right:8px}.px-2\.5{padding-left:10px;padding-right:10px}.px-4{padding-left:16px;padding-right:16px}
-.py-2{padding-top:8px;padding-bottom:8px}.py-2\.5{padding-top:10px;padding-bottom:10px}.py-3{padding-top:12px;padding-bottom:12px}
-.mt-6{margin-top:24px}.mb-5{margin-bottom:20px}
 </style>
 </head>
 <body>
@@ -34,15 +23,19 @@ body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;color:#1E
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<!-- Extended App.tsx source (unmodified except stripped module import/export for in-browser run) -->
 <script type="text/plain" id="appsrc">
 type View = "dashboard" | "value-page";
 type ImportOption = string | null;
 
 // ─── [ADDED] Merchant API mock + CSS→Core cross-sell config ───────────────────
 // Storylane interactive tour shown by every conversion CTA before commitment.
+// Share page (standalone, opens in a new tab as a guaranteed fallback):
 const STORYLANE_URL =
   "https://democenter.channable.com/share/tk7rwmo5fdfk?email=cher%20utilisateur%20de%20Channable";
+// Embeddable demo URL (used inside the iframe) + loader script:
+const STORYLANE_EMBED_URL =
+  "https://democenter.channable.com/demo/tk7rwmo5fdfk?embed=inline&email=cher%20utilisateur%20de%20Channable";
+const STORYLANE_LOADER = "https://js.storylane.io/js/v1/storylane.js";
 
 // Shape of the (mock) data we pull from the Merchant API to pre-fill onboarding.
 type MerchantPrefill = {
@@ -1073,6 +1066,17 @@ function ModalShell({
 
 // Storylane interactive tour modal. Opened by every conversion CTA.
 function StorylaneModal({ onClose, onGetStarted }: { onClose: () => void; onGetStarted: () => void }) {
+  // Load Storylane's embed loader once (handles resize + the demo runtime).
+  useEffect(() => {
+    if (!document.getElementById("sl-loader")) {
+      const sc = document.createElement("script");
+      sc.id = "sl-loader";
+      sc.src = STORYLANE_LOADER;
+      sc.async = true;
+      document.body.appendChild(sc);
+    }
+  }, []);
+
   return (
     <ModalShell onClose={onClose} width={860}>
       {/* Header */}
@@ -1094,14 +1098,24 @@ function StorylaneModal({ onClose, onGetStarted }: { onClose: () => void; onGetS
         </button>
       </div>
 
-      {/* Storylane embed */}
-      <div style={{ flex: 1, minHeight: 0, background: "#EEF1F5" }}>
+      {/* Storylane embed (interactive tour). Fallback link opens the share page in a new tab. */}
+      <div style={{ position: "relative", height: 470, background: "#EEF1F5" }}>
         <iframe
-          src={STORYLANE_URL}
+          className="sl-demo"
+          src={STORYLANE_EMBED_URL}
           title="Channable product tour"
-          allow="fullscreen"
-          style={{ width: "100%", height: 480, border: "none", display: "block" }}
+          allow="fullscreen; clipboard-write"
+          referrerPolicy="origin"
+          style={{ width: "100%", height: "100%", border: "none", display: "block" }}
         />
+        <a
+          href={STORYLANE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...btn.base, position: "absolute", bottom: 12, right: 12, padding: "6px 10px", fontSize: 12, textDecoration: "none", color: C.muted }}
+        >
+          Open the tour in a new tab <ArrowRight size={12} />
+        </a>
       </div>
 
       {/* Footer CTA */}
@@ -1250,27 +1264,24 @@ function DetectionNotice({ projectName, cms }: { projectName: string; cms: strin
       props = props || {};
       var size = props.size || 24;
       var children = paths.map(function(d, i){ return React.createElement('path', { key:i, d:d }); });
-      return React.createElement('svg', {
-        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
-        stroke: 'currentColor', strokeWidth: props.strokeWidth || 2,
-        strokeLinecap: 'round', strokeLinejoin: 'round', style: props.style
-      }, children);
+      return React.createElement('svg', { width:size, height:size, viewBox:'0 0 24 24', fill:'none',
+        stroke:'currentColor', strokeWidth: props.strokeWidth || 2, strokeLinecap:'round', strokeLinejoin:'round', style: props.style }, children);
     };
   }
   Object.keys(ICONS).forEach(function(n){ window[n] = makeIcon(n); });
 
-  try {
-    var raw = document.getElementById('appsrc').textContent;
-    var pre = 'const {useState}=React;\n';
-    var post = '\nReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));';
-    var out = Babel.transform(pre + raw + post, {
-      presets: [['react'], ['typescript', { isTSX: true, allExtensions: true }]]
-    }).code;
-    var s = document.createElement('script'); s.text = out; document.body.appendChild(s);
-    var boot = document.getElementById('__boot'); if (boot) boot.remove();
-  } catch (e) {
-    document.getElementById('__boot').textContent = 'Error: ' + e.message; console.error(e);
+  function boot(){
+    if (!window.Babel) { return setTimeout(boot, 30); }
+    try {
+      var raw = document.getElementById('appsrc').textContent;
+      var pre = 'const {useState, useEffect}=React;\n';
+      var post = '\nReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));';
+      var out = Babel.transform(pre + raw + post, { presets: [['react'], ['typescript', { isTSX:true, allExtensions:true }]] }).code;
+      var s = document.createElement('script'); s.text = out; document.body.appendChild(s);
+      var b = document.getElementById('__boot'); if (b) b.remove();
+    } catch (e) { document.getElementById('__boot').textContent = 'Error: ' + e.message; console.error(e); }
   }
+  boot();
 })();
 </script>
 </body></html>
